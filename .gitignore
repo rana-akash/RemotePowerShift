@@ -1,0 +1,13 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+.DS_Store
+.idea/.DS_Store
+.idea/.idea.RemotePower/.DS_Store
+.idea/.idea.RemotePower/.idea/encodings.xml
+.idea/.idea.RemotePower/.idea/indexLayout.xml
+.idea/.idea.RemotePower/.idea/vcs.xml
+.idea/.idea.RemotePower/.idea/projectSettingsUpdater.xml
+.idea/.idea.RemotePower/.idea/workspace.xml
