@@ -13,6 +13,7 @@ const int kNetworkDelay = 1000;
 void printCharArr(char *apiResult);
 void ClearArray(char *arr);
 int GetCpuState();
+void TurnCpuOn();
 
 void setup()
 {
@@ -180,6 +181,7 @@ void loop()
       else if(CpuState == 0){
         //Turn ON CPU
         Serial.println("Turning Cpu ON....");
+        TurnCpuOn();
       }
     }
   }
@@ -188,6 +190,10 @@ stopAndDoAgain:
   http.stop();
 moveOn:
   delay(30 * 1000);
+}
+
+void TurnCpuOn(){
+
 }
 
 int GetCpuState(){
