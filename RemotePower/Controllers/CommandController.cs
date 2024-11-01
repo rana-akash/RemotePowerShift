@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 namespace RemotePower.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("[controller]/[action]")]
 public class CommandController : ControllerBase
 {
     private readonly ILogger<CommandController> _logger;
@@ -15,8 +15,8 @@ public class CommandController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet(Name = "GetCommand")]
-    public string Get()
+    [HttpGet]
+    public string GetCommand()
     {
         string procedureName = "GetCommand";
         var result = new List<bool>();
@@ -46,26 +46,19 @@ public class CommandController : ControllerBase
         return $"[{result[0]}]";
     }
     
-    [HttpPost(Name = "PostCommand")]
-    public string Post(bool input)
+    [HttpGet]
+    public string PostCommand(bool input)
     {
         string procedureName = "PostCommand";
-        using (var connection = new SqlConnection(connectionString))
+        using var connection = new SqlConnection(connectionString);
+        connection.Open();
+        using (SqlCommand command = new SqlCommand(procedureName, connection))
         {
-            connection.Open();
-            using (SqlCommand command = new SqlCommand(procedureName, connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.Add(new SqlParameter("@command", input));
-                command.ExecuteReader();
-            }
-            connection.Close();
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.Add(new SqlParameter("@command", input));
+            command.ExecuteReader();
         }
+        connection.Close();
         return "[Success]";
     }
-}
-
-public class Command
-{
-    public bool command;
 }
