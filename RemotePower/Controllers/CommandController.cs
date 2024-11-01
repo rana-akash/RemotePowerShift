@@ -16,7 +16,7 @@ public class CommandController : ControllerBase
     }
 
     [HttpGet(Name = "GetCommand")]
-    public bool Get()
+    public string Get()
     {
         string procedureName = "GetCommand";
         var result = new List<bool>();
@@ -43,7 +43,7 @@ public class CommandController : ControllerBase
         {
             throw new ApplicationException("Command not found");
         }
-        return result[0];
+        return $"|{result[0]}|";
     }
     
     [HttpPost(Name = "PostCommand")]
@@ -61,8 +61,7 @@ public class CommandController : ControllerBase
             }
             connection.Close();
         }
-
-        return "success";
+        return "|Success|";
     }
 }
 
