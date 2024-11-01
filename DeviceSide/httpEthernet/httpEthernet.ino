@@ -10,6 +10,8 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 const int kNetworkTimeout = 30*1000;
 // Number of milliseconds to wait if no data is available before trying again
 const int kNetworkDelay = 1000;
+const int OutputPin = 9;
+const int InputPin = 8;
 void printCharArr(char *apiResult);
 void ClearArray(char *arr);
 int GetCpuState();
@@ -18,11 +20,14 @@ void TurnCpuOn();
 void setup()
 {
   Serial.begin(9600);
+  pinMode(OutputPin, OUTPUT);
+  pinMode(InputPin, INPUT);
 }
 
 void loop()
 {
   int CpuState = 0;
+  
   unsigned long timeoutStart;
   char c;
   char apiResult[10];
@@ -189,15 +194,17 @@ void loop()
 stopAndDoAgain:
   http.stop();
 moveOn:
-  delay(30 * 1000);
+  delay(1 * 60 * 1000); //TODO: turn to 2 mins
 }
 
 void TurnCpuOn(){
-
+  digitalWrite(OutputPin, HIGH);
+  delay(1000);
+  digitalWrite(OutputPin, LOW);
 }
 
 int GetCpuState(){
-  return 0;
+  return digitalRead(InputPin);
 }
 
 void printCharArr(char *apiResult){
