@@ -204,7 +204,16 @@ void TurnCpuOn(){
 }
 
 int GetCpuState(){
-  return digitalRead(InputPin);
+  unsigned long startTime = millis();
+  while(1){
+    bool result = digitalRead(InputPin);
+    if(!result){ // 0 found
+      return 0;
+    }
+    if(millis()-startTime > 4000){
+      return 1;
+    }
+  }
 }
 
 void printCharArr(char *apiResult){
