@@ -9,7 +9,9 @@ namespace RemotePower.Controllers;
 public class CommandController : ControllerBase
 {
     private readonly ILogger<CommandController> _logger;
-    private readonly string connectionString = "Server=tcp:aranaa1.database.windows.net,1433;Initial Catalog=aranaa1;Persist Security Info=False;User ID=arana;Password=alaska@2";
+
+    private readonly string connectionString =System.Environment.GetEnvironmentVariable("SQLCONNSTR_ConString");
+
     public CommandController(ILogger<CommandController> logger)
     {
         _logger = logger;
@@ -18,47 +20,81 @@ public class CommandController : ControllerBase
     [HttpGet]
     public string GetCommand()
     {
-        string procedureName = "GetCommand";
+        var procedureName = "GetCommand";
         var result = new List<bool>();
-        using (var connection = new SqlConnection(connectionString))
+        using var connection = new SqlConnection(connectionString);
+        try
         {
             connection.Open();
-            using (SqlCommand command = new SqlCommand(procedureName, connection))
+            using (var command = new SqlCommand(procedureName, connection))
             {
                 command.CommandType = CommandType.StoredProcedure;
-
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        bool res = bool.Parse(reader[0].ToString());
+                        var res = bool.Parse(reader[0].ToString());
                         result.Add(res);
                     }
                 }
             }
             connection.Close();
         }
-
-        if (result.Count == 0)
+        catch (Exception ex)
         {
-            throw new ApplicationException("Command not found");
+            if (connection.State == ConnectionState.Open) connection.Close();
         }
+
+        if (result.Count == 0) throw new ApplicationException("Command not found");
         return $"[{result[0]}]";
     }
-    
+
     [HttpGet]
-    public string PostCommand(bool input)
+    public string PostStatus(string input)
     {
-        string procedureName = "PostCommand";
+        var procedureName = "PostStatus";
         using var connection = new SqlConnection(connectionString);
-        connection.Open();
-        using (SqlCommand command = new SqlCommand(procedureName, connection))
+        try
         {
-            command.CommandType = CommandType.StoredProcedure;
-            command.Parameters.Add(new SqlParameter("@command", input));
-            command.ExecuteReader();
+            connection.Open();
+            using (var command = new SqlCommand(procedureName, connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@status", input));
+                command.ExecuteReader();
+            }
+
+            connection.Close();
         }
-        connection.Close();
+        catch (Exception ex)
+        {
+            if (connection.State == ConnectionState.Open) connection.Close();
+        }
+        return "[Success]";
+    }
+
+    [HttpGet]
+    public string PostCommand(bool input, bool alreadyOn = false)
+    {
+        var procedureName = "PostCommand";
+        using var connection = new SqlConnection(connectionString);
+        try
+        {
+            connection.Open();
+            using (var command = new SqlCommand(procedureName, connection))
+            {
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add(new SqlParameter("@command", input));
+                command.Parameters.Add(new SqlParameter("@alreadyOn", alreadyOn));
+                command.ExecuteReader();
+            }
+            connection.Close();
+        }
+        catch (Exception ex)
+        {
+            if (connection.State == ConnectionState.Open) connection.Close();
+        }
+
         return "[Success]";
     }
 }

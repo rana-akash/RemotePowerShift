@@ -27,7 +27,6 @@ void setup()
 void loop()
 {
   int CpuState = 0;
-  
   unsigned long timeoutStart;
   char c;
   char apiResult[10];
@@ -41,28 +40,89 @@ void loop()
   char kHostname[] = "aranaapi1-evgreegzhjeqh8fw.canadacentral-01.azurewebsites.net";
   char kGetPath[] = "/Command/GetCommand";
   char kPostPath[] = "/Command/PostCommand?input=false";
+  char kPostAlreadyOnPath[] = "/Command/PostCommand?input=false&alreadyOn=true";
   
-  //Get CpuState, if ON, goto moveOn label
-  CpuState = GetCpuState();
-  if(CpuState == 1){
-    Serial.println("already ON..");
-    goto moveOn;
-  }
-
   Ethernet.init(17);
   while (Ethernet.begin(mac) != 1)
   {
     Serial.println("Error getting IP address via DHCP, trying again...");
-    goto stopAndDoAgain;
+    goto moveOn;
   }
 
-  err = http.get(kHostname, kGetPath);
+  CpuState = GetCpuState();
+  if(CpuState == 1){
+    Serial.println("already ON..");
+///////////////////////////////////////////////////////////// Start Post command if already ON /////////////////////////////////////////////////////////
 
+    err = http.get(kHostname, kPostAlreadyOnPath);
+
+    if (err != 0) //no error
+    {
+      Serial.print("Connect failed: ");
+      Serial.println(err);
+      goto moveOn;
+    }
+
+    getResponse = http.responseStatusCode();
+
+    if(getResponse != 200){
+      Serial.print("Err post command already on api : response status is : ");
+      Serial.println(getResponse);
+      goto moveOn;
+    }
+
+    skipped = http.skipResponseHeaders();
+    if(skipped < 0){
+      Serial.println("response headers couldn't be skipped.");
+      Serial.println(skipped);
+      http.stop();
+      goto moveOn;
+    }
+
+    timeoutStart = millis();
+    
+    while ( (http.connected() || http.available()) && ((millis() - timeoutStart) < kNetworkTimeout) )
+    {
+        if (http.available())
+        {
+            c = http.read();
+
+            if(c == 93){ // ] character
+              relevantChar = 0;
+            }
+
+            if(relevantChar == 1){
+              // Serial.print(c);
+              apiResult[apiResultIndex] = c;
+              apiResultIndex++;
+            }
+
+            if(c == 91){ // [ character
+              relevantChar = 1;
+            }
+
+            timeoutStart = millis();
+        }
+        else
+        {
+          delay(kNetworkDelay);
+        }
+    }
+  relevantChar = 0; //incase its not set by response;
+  apiResult[apiResultIndex] = '\0';
+  http.stop();
+  Serial.print("Result of post command already on : ");
+  Serial.println(apiResult);
+//////////////////////////////////////////////////////////Finish post command already on /////////////////////////////////////////////
+    goto moveOn;
+  }
+/////////////////////////////////////////////////////////////Start Get command /////////////////////////////////////////////////////////
+  err = http.get(kHostname, kGetPath);
   if (err != 0) //no error
   {
     Serial.print("Connect failed: ");
     Serial.println(err);
-    goto stopAndDoAgain;
+    goto moveOn;
   }
 
   getResponse = http.responseStatusCode();
@@ -70,14 +130,15 @@ void loop()
   if(getResponse != 200){
     Serial.print("Err : response status is : ");
     Serial.println(getResponse);
-    goto stopAndDoAgain;
+    goto moveOn;
   }
 
   skipped = http.skipResponseHeaders();
   if(skipped < 0){
     Serial.println("response headers couldn't be skipped.");
     Serial.println(skipped);
-    goto stopAndDoAgain;
+    http.stop();
+    goto moveOn;
   }
 
   timeoutStart = millis();
@@ -112,7 +173,7 @@ void loop()
   relevantChar = 0; //incase its not set by response;
   apiResult[apiResultIndex] = '\0';
   http.stop();
-
+//////////////////////////////////////////////////////////End of Get command ////////////////////////////////////////////////////////////
   if (strcmp(apiResult, "True") == 0)
   {
     apiResultIndex = 0;
@@ -120,13 +181,14 @@ void loop()
 
     Serial.println("GetCommand Result is true");
 
+////////////////////////////////////////////////////Start Post command ///////////////////////////////////////////////////////////////////
     err = http.get(kHostname, kPostPath);
 
     if (err != 0) //no error
     {
       Serial.print("Connect failed: ");
       Serial.println(err);
-      goto stopAndDoAgain;
+      goto moveOn;
     }
 
     getResponse = http.responseStatusCode();
@@ -134,14 +196,15 @@ void loop()
     if(getResponse != 200){
       Serial.print("Err : response status is : ");
       Serial.println(getResponse);
-      goto stopAndDoAgain;
+      goto moveOn;
     }
 
     skipped = http.skipResponseHeaders();
     if(skipped < 0){
       Serial.println("response headers couldn't be skipped.");
       Serial.println(skipped);
-      goto stopAndDoAgain;
+      http.stop();
+      goto moveOn;
     }
 
     timeoutStart = millis();
@@ -174,9 +237,10 @@ void loop()
         }
     }
     apiResult[apiResultIndex] = '\0';
+    http.stop();
+////////////////////////////////////////////////////Finish Post command ///////////////////////////////////////////////////////////////////
     if (strcmp(apiResult, "Success") == 0)
     {
-      // Get CPU state in CPUState var
       Serial.println("PostCommand Result is Success");
       CpuState = GetCpuState();
       if(CpuState == 1){
@@ -191,10 +255,8 @@ void loop()
     }
   }
 
-stopAndDoAgain:
-  http.stop();
 moveOn:
-  delay(1 * 60 * 1000); //TODO: turn to 2 mins
+  delay(2 * 60 * 1000); //TODO: turn to 2 mins
 }
 
 void TurnCpuOn(){
