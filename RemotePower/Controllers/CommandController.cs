@@ -1,76 +1,83 @@
-using System.Data;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
+using Microsoft.Azure.Cosmos;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace RemotePower.Controllers;
+
+public class Command
+{
+    public string id { get; set; }
+    public string command { get; set; }
+}
+
+
 
 [ApiController]
 [Route("[controller]/[action]")]
 public class CommandController : ControllerBase
 {
-    // private readonly ILogger<CommandController> _logger;
+    private readonly ILogger<CommandController> _logger;
+    private CosmosClient _client;
+    private Container _container;
+    private Database _database;
 
-    private readonly string connectionString =System.Environment.GetEnvironmentVariable("SQLCONNSTR_ConString");
-
-    public CommandController()
+    public CommandController(ILogger<CommandController> logger)
     {
-        // _logger = logger;
+        _logger = logger;
     }
 
     [HttpGet]
-    public string GetCommand()
+    public async Task<string> GetCommand()
     {
-        var procedureName = "GetCommand";
-        var result = new List<bool>();
-        using var connection = new SqlConnection(connectionString);
-        try
+        _client = new CosmosClient(
+            "https://aranaa1.documents.azure.com:443/",
+            "Vwi6BNVplLrUJTN10haiWTJZO9rHCoM549gS9Q11dRaCMaQAGgTQwAh0J1HWuXhcYKd35SgH6nAwACDbEVcE8w=="
+        );
+        _database = _client.GetDatabase("RemoteControlDB");
+        _container = _database.GetContainer("commands");
+        var sql = "SELECT * FROM c WHERE c.id = @id";
+
+        var query = new QueryDefinition(
+                sql
+            )
+            .WithParameter("@id", "1");
+
+        using var feed = _container.GetItemQueryIterator<dynamic>(
+            query
+        );
+        var response = await feed.ReadNextAsync();
+        // Console.WriteLine($"[{response.StatusCode}]\t{1}\t{response.RequestCharge} RUs");
+        if (response == null || response.StatusCode != HttpStatusCode.OK)
         {
-            connection.Open();
-            using (var command = new SqlCommand(procedureName, connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        var res = bool.Parse(reader[0].ToString());
-                        result.Add(res);
-                    }
-                }
-            }
-            connection.Close();
-        }
-        catch (Exception ex)
-        {
-            if (connection.State == ConnectionState.Open) connection.Close();
+            throw new ApplicationException("couldn't get command.");
         }
 
-        if (result.Count == 0) throw new ApplicationException("Command not found");
-        return $"[{result[0]}]";
+        var result = (((JObject)response.Resource.ToList()[0])["command"]).ToString();
+        return $"[{result}]";
     }
 
     [HttpGet]
-    public string PostCommand(bool input, bool alreadyOn = false)
+    public async Task<string> PostCommand(bool input, bool alreadyOn = false)
     {
-        var procedureName = "PostCommand";
-        using var connection = new SqlConnection(connectionString);
-        try
+        _client = new CosmosClient(
+            "https://aranaa1.documents.azure.com:443/",
+            "Vwi6BNVplLrUJTN10haiWTJZO9rHCoM549gS9Q11dRaCMaQAGgTQwAh0J1HWuXhcYKd35SgH6nAwACDbEVcE8w=="
+        );
+        _database = _client.GetDatabase("RemoteControlDB");
+        _container = _database.GetContainer("commands");
+        var command = new
         {
-            connection.Open();
-            using (var command = new SqlCommand(procedureName, connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.Add(new SqlParameter("@command", input));
-                command.Parameters.Add(new SqlParameter("@alreadyOn", alreadyOn));
-                command.ExecuteReader();
-            }
-            connection.Close();
-        }
-        catch (Exception ex)
+            id = "1",
+            command = input.ToString()
+        };
+        var response = await _container.UpsertItemAsync(command);
+        // Console.WriteLine($"[{response.StatusCode}]\t{1}\t{response.RequestCharge} RUs");
+        if (response == null || response.StatusCode != HttpStatusCode.OK)
         {
-            if (connection.State == ConnectionState.Open) connection.Close();
+            throw new ApplicationException("couldn't update command.");
         }
-
         return "[Success]";
     }
 }
