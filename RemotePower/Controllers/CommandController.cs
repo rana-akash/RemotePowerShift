@@ -8,13 +8,13 @@ namespace RemotePower.Controllers;
 [Route("[controller]/[action]")]
 public class CommandController : ControllerBase
 {
-    private readonly ILogger<CommandController> _logger;
+    // private readonly ILogger<CommandController> _logger;
 
     private readonly string connectionString =System.Environment.GetEnvironmentVariable("SQLCONNSTR_ConString");
 
-    public CommandController(ILogger<CommandController> logger)
+    public CommandController()
     {
-        _logger = logger;
+        // _logger = logger;
     }
 
     [HttpGet]
@@ -47,30 +47,6 @@ public class CommandController : ControllerBase
 
         if (result.Count == 0) throw new ApplicationException("Command not found");
         return $"[{result[0]}]";
-    }
-
-    [HttpGet]
-    public string PostStatus(string input)
-    {
-        var procedureName = "PostStatus";
-        using var connection = new SqlConnection(connectionString);
-        try
-        {
-            connection.Open();
-            using (var command = new SqlCommand(procedureName, connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                command.Parameters.Add(new SqlParameter("@status", input));
-                command.ExecuteReader();
-            }
-
-            connection.Close();
-        }
-        catch (Exception ex)
-        {
-            if (connection.State == ConnectionState.Open) connection.Close();
-        }
-        return "[Success]";
     }
 
     [HttpGet]
